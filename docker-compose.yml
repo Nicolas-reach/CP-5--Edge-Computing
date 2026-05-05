@@ -1,0 +1,56 @@
+services:
+
+  mongo:
+    image: mongo:6
+    container_name: fiware-mongo
+    hostname: mongo
+    ports:
+      - "27017:27017"
+    restart: unless-stopped
+
+  orion:
+    image: fiware/orion:3.10.1
+    container_name: fiware-orion
+    hostname: orion
+    ports:
+      - "1026:1026"
+    command: -dbURI mongodb://mongo:27017 -logLevel DEBUG
+    depends_on:
+      - mongo
+    restart: unless-stopped
+
+  iot-agent:
+    image: fiware/iotagent-ul:latest
+    container_name: fiware-iot-agent
+    hostname: iot-agent
+    ports:
+      - "4041:4041"
+    environment:
+      - IOTA_CB_HOST=orion
+      - IOTA_CB_PORT=1026
+      - IOTA_MQTT_HOST=broker.hivemq.com
+      - IOTA_MQTT_PORT=1883
+      - IOTA_MONGO_HOST=mongo
+      - IOTA_MONGO_PORT=27017
+      - IOTA_MONGO_DB=iotagentul
+    depends_on:
+      - mongo
+      - orion
+    restart: unless-stopped
+
+  sth-comet:
+    image: fiware/sth-comet:2.10.0
+    container_name: fiware-sth-comet
+    hostname: sth-comet
+    ports:
+      - "8666:8666"
+    environment:
+      - STH_HOST=0.0.0.0
+      - STH_PORT=8666
+      - DB_URI=mongo:27017
+      - DB_PREFIX=sth_
+    depends_on:
+      - mongo
+    restart: unless-stopped
+
+networks: {}

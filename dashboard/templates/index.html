@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Painel de Controle - Vinheria</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        body {
+            background-color: #121212;
+            color: #ffffff;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            margin: 0;
+            padding: 20px;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        .header {
+            text-align: center;
+            margin-bottom: 40px;
+            padding-bottom: 20px;
+            border-bottom: 1px solid #333333;
+        }
+        .header h1 {
+            margin: 0;
+            font-size: 28px;
+            font-weight: 600;
+            letter-spacing: 1px;
+            color: #ffffff;
+        }
+        .status-badge {
+            display: inline-block;
+            background-color: #2e7d32;
+            color: #ffffff;
+            padding: 4px 12px;
+            border-radius: 16px;
+            font-size: 12px;
+            font-weight: bold;
+            margin-top: 10px;
+        }
+        .charts-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+            gap: 20px;
+        }
+        .chart-card {
+            background-color: #1e1e1e;
+            border: 1px solid #333333;
+            border-radius: 10px;
+            padding: 20px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.5);
+        }
+        .chart-card h2 {
+            margin-top: 0;
+            font-size: 16px;
+            color: #a0a0a0;
+            text-align: center;
+            margin-bottom: 15px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>Monitoramento IoT | Vinheria</h1>
+            <div class="status-badge">Sistema Online</div>
+        </div>
+
+        <div class="charts-grid">
+            <div class="chart-card">
+                <h2>Temperatura (°C)</h2>
+                <canvas id="tempChart"></canvas>
+            </div>
+            <div class="chart-card">
+                <h2>Umidade (%)</h2>
+                <canvas id="humChart"></canvas>
+            </div>
+            <div class="chart-card" style="grid-column: 1 / -1;">
+                <h2>Luminosidade (Lux)</h2>
+                <canvas id="lumChart"></canvas>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const chartOptions = {
+            responsive: true,
+            animation: false,
+            scales: {
+                x: { ticks: { color: '#888' }, grid: { color: '#333' } },
+                y: { ticks: { color: '#888' }, grid: { color: '#333' } }
+            },
+            plugins: { legend: { display: false } }
+        };
+
+        const createChart = (ctx, color) => new Chart(ctx, {
+            type: 'line',
+            data: { labels: [], datasets: [{ data: [], borderColor: color, backgroundColor: color + '33', borderWidth: 2, fill: true, tension: 0.3 }] },
+            options: chartOptions
+        });
+
+        const tempChart = createChart(document.getElementById('tempChart'), '#ff5252');
+        const humChart = createChart(document.getElementById('humChart'), '#448aff');
+        const lumChart = createChart(document.getElementById('lumChart'), '#ffd740');
+
+        async function updateDashboard() {
+            try {
+                const response = await fetch('/api/data');
+                const data = await response.json();
+
+                const formatData = (sensorData) => {
+                    const reversed = [...sensorData].reverse();
+                    return {
+                        labels: reversed.map(d => new Date(d.time).toLocaleTimeString('pt-BR', {hour: '2-digit', minute:'2-digit', second:'2-digit'})),
+                        values: reversed.map(d => parseFloat(d.value))
+                    };
+                };
+
+                if (data.temperature.length > 0) {
+                    const t = formatData(data.temperature);
+                    tempChart.data.labels = t.labels;
+                    tempChart.data.datasets[0].data = t.values;
+                    tempChart.update();
+                }
+                
+                if (data.humidity.length > 0) {
+                    const h = formatData(data.humidity);
+                    humChart.data.labels = h.labels;
+                    humChart.data.datasets[0].data = h.values;
+                    humChart.update();
+                }
+
+                if (data.luminosity.length > 0) {
+                    const l = formatData(data.luminosity);
+                    lumChart.data.labels = l.labels;
+                    lumChart.data.datasets[0].data = l.values;
+                    lumChart.update();
+                }
+            } catch (error) {
+                console.error('Falha ao buscar dados:', error);
+            }
+        }
+
+        // Atualiza a cada 5 segundos
+        setInterval(updateDashboard, 5000);
+        updateDashboard();
+    </script>
+</body>
+</html>
